@@ -105,21 +105,23 @@ export const login = asyncWrapper(async (req, res, next) => {
   // 2️⃣ جلب المستخدم
   const findUser = await User.getUser(email);
 
+  // 2.1️⃣ التحقق من وجود المستخدم أولاً
   if (!findUser || findUser.length === 0) {
-    const error = appError.create("المستخدم غير موجود", 400, httpStatusText.FAIL);
+    const error = appError.create("البريد الإلكتروني أو كلمة المرور غير صحيحة", 401, httpStatusText.FAIL);
     return next(error);
   }
 
   const user = findUser[0];
   const matchedPassword = await bcrypt.compare(password, user.password_hash);
 
+  // 2.2️⃣ التحقق من صحة كلمة المرور
+  if (!matchedPassword) {
+    const error = appError.create("البريد الإلكتروني أو كلمة المرور غير صحيحة", 401, httpStatusText.FAIL);
+    return next(error);
+  }
 
 
   if (user.is_first_login) {
-    if (!matchedPassword) {
-      const error = appError.create("كلمة المرور غير صحيحة", 400, httpStatusText.FAIL);
-      return next(error);
-    }
     const token = await generateJWT({  id: user.user_id });
     return res.status(200).json({
       message: "تسجيل الدخول الأول - يرجى تحديث الملف الشخصي",
@@ -128,10 +130,10 @@ export const login = asyncWrapper(async (req, res, next) => {
     });
   }
 
-  // 3️⃣ التحقق من الباسورد
+  // 3️⃣ التحقق من الباسورد (هذا الجزء مكرر ويمكن حذفه، لكن سأبقيه مؤقتاً للتأكد)
 
   if (!matchedPassword) {
-    const error = appError.create("كلمة المرور غير صحيحة", 400, httpStatusText.FAIL);
+    const error = appError.create("البريد الإلكتروني أو كلمة المرور غير صحيحة", 401, httpStatusText.FAIL);
     return next(error);
   }
 

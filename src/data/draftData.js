@@ -48,13 +48,36 @@ export const updateDraftDetails = async (client, transId, data) => {
     ]);
 };
 
-// 4. حذف مسودة
+// 4. حذف مسودة (تم التعديل لحل مشكلة الـ Foreign Key) ✅
 export const deleteDraftById = async (transId, userId) => {
-    const query = `
-        DELETE FROM "Transaction"
-        WHERE transaction_id = $1 AND sender_user_id = $2
-        RETURNING transaction_id;
-    `;
-    const result = await pool.query(query, [transId, userId]);
-    return result.rowCount > 0;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN'); // بدأنا معاملة داتابيز
+
+        // أ) حذف المرفقات المرتبطة بهذه المسودة أولاً
+        const deleteAttachmentsQuery = `
+            DELETE FROM "Attachment" 
+            WHERE transaction_id = $1
+        `;
+        await client.query(deleteAttachmentsQuery, [transId]);
+
+        // ب) حذف المسودة نفسها الآن بعد تنظيف المرفقات
+        const deleteDraftQuery = `
+            DELETE FROM "Transaction"
+            WHERE transaction_id = $1 AND sender_user_id = $2 AND is_draft = true
+            RETURNING transaction_id;
+        `;
+        const result = await client.query(deleteDraftQuery, [transId, userId]);
+
+        await client.query('COMMIT'); // حفظ التغييرات
+        
+        // لو رجعنا صفوف يبقى الحذف تم بنجاح
+        return result.rowCount > 0;
+
+    } catch (error) {
+        await client.query('ROLLBACK'); // تراجع لو حصل خطأ
+        throw error;
+    } finally {
+        client.release(); // إغلاق الاتصال
+    }
 };
