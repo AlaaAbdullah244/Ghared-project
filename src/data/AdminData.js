@@ -232,9 +232,12 @@ export const updateSystemUser = async (userId, full_name, email, mobile_number, 
 
 
 
-export const AddUserData = async (email, password_hash, roleId, departmentId) => {
+// AdminData.js
+
+export const AddUserData = async (email, password_hash, departmentId) => {
   const query = `
     WITH 
+    -- 1️⃣ إنشاء المستخدم الجديد
     new_user AS (
       INSERT INTO "User" 
       (full_name, email, password_hash, mobile_number, is_first_login)
@@ -248,34 +251,27 @@ export const AddUserData = async (email, password_hash, roleId, departmentId) =>
       )
       RETURNING user_id, email
     ),
-    get_role AS (
-      -- ✅ تصحيح الشرط: استخدام $4 و $3 بدلاً من 0
-      SELECT dep_role_id FROM "Department_Role" 
-      WHERE department_id = $4 AND role_id = $3 
-      LIMIT 1
-    ),
-    ins_role AS (
-      -- ✅ استخدام $4 و $3 عند الإنشاء أيضاً
-      INSERT INTO "Department_Role" (department_id, role_id)
-      SELECT $4, $3
-      WHERE NOT EXISTS (SELECT 1 FROM get_role)
-      RETURNING dep_role_id
-    ),
-    final_role AS (
-      SELECT dep_role_id FROM get_role
-      UNION ALL
-      SELECT dep_role_id FROM ins_role
+    -- 2️⃣ البحث عن الرول المرتبط بهذا القسم تلقائياً
+    target_role AS (
+      SELECT dr.dep_role_id 
+      FROM "Department_Role" dr
+      INNER JOIN "Role" r ON dr.role_id = r.role_id
+      WHERE dr.department_id = $3  -- القسم اللي الأدمن اختاره
+      AND r.role_level <> 0        -- استبعاد الأدمن (Level 0)
+      LIMIT 1                      -- هات أول رول تلاقيه مربوط بالقسم ده
     )
+    -- 3️⃣ إدخال العضوية باستخدام الـ ID اللي جبناه في الخطوة السابقة
     INSERT INTO "User_Membership" (user_id, dep_role_id, start_date)
     SELECT 
       (SELECT user_id FROM new_user), 
-      (SELECT dep_role_id FROM final_role LIMIT 1), 
+      (SELECT dep_role_id FROM target_role), 
       CURRENT_DATE
+    WHERE EXISTS (SELECT 1 FROM target_role) -- تأكد إننا لقينا رول أصلاً
     RETURNING *;
   `;
 
-  // ✅ تصحيح المصفوفة: التأكد من تمرير roleId و departmentId
-  const values = [email, password_hash, roleId, departmentId];
+  // القيم: 1:email, 2:password, 3:departmentId
+  const values = [email, password_hash, departmentId];
 
   const result = await pool.query(query, values);
   return result.rows[0];

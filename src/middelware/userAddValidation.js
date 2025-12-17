@@ -9,9 +9,7 @@ export const userAddValidation = [
   body("password")
     .isLength({ min: 6 }).withMessage("يجب أن تتكون كلمة المرور من 6 أحرف على الأقل"),
 
-    body("roleId")
-    .notEmpty().withMessage("يجب اختيار الوظيفة")
-    .isInt().withMessage("معرف الوظيفة يجب أن يكون رقماً صحيحاً"),
+  
 
   // ✅ التحقق من القسم (Department)
   body("departmentId")

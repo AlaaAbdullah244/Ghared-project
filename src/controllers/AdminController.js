@@ -215,9 +215,9 @@ export const updateUser = asyncWrapper(async (req, res, next) => {
 });
 
 
-export const AddUser = asyncWrapper(async(req,res , next)=>
-{
+// AdminController.js
 
+export const AddUser = asyncWrapper(async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const errorMessages = errors.array().map((err) => err.msg).join("، ");
@@ -225,14 +225,11 @@ export const AddUser = asyncWrapper(async(req,res , next)=>
     return next(error);
   }
 
-  // ✅ 2. استقبال البيانات بـ camelCase
+  // ✅ نستقبل فقط القسم، ولا نستقبل الدور
   const { 
     email, 
     password, 
-    roleId,
-    departmentId
- 
-    // profilePicture 
+    departmentId 
   } = req.body;
 
   if (!req.userId) {
@@ -240,33 +237,27 @@ export const AddUser = asyncWrapper(async(req,res , next)=>
     return next(error);
   }
 
-  // const existingUser = await User.getUser(email);
-  // if (existingUser && existingUser.length > 0) {
-  //   const error = appError.create("هذا البريد الإلكتروني مسجل بالفعل", 409, httpStatusText.FAIL);
-  //   return next(error);
-  // }
-
   const password_hash = await bcrypt.hash(password, 10);
 
-  // ✅ 3. استدعاء الدالة بالترتيب الصحيح
+  // ✅ نرسل فقط البريد، الباسورد، والقسم
   const newAdmin = await Admin.AddUserData(
-       
     email,   
     password_hash, 
-    roleId,
     departmentId
-      
-       
   );
+  
+  // لو رجع null معناه القسم ده ملوش أي رول متاح
+  if (!newAdmin) {
+     const error = appError.create("لم يتم العثور على صلاحية (Role) مرتبطة بهذا القسم، تأكد من إعدادات القسم أولاً", 404, httpStatusText.FAIL);
+     return next(error);
+  }
 
   return res.status(201).json({
     status: httpStatusText.SUCCESS,
-    message: "تم إضافة المسؤول وتعيين الصلاحيات بنجاح",
+    message: "تم إضافة المستخدم وتعيين الصلاحية الخاصة بالقسم بنجاح",
     data: { admin: newAdmin }
   });
-
 });
-
 export const getAllData = asyncWrapper(async(req, res, next) => {
 
   // 1. إضافة await
