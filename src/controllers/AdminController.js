@@ -189,18 +189,15 @@ export const deleteUser = asyncWrapper(async (req, res, next) => {
 export const updateUser = asyncWrapper(async (req, res, next) => {
   const { id } = req.params;
   
-  // 1️⃣ استقبلنا البيانات المسموح بتعديلها فقط
-  // حتى لو الفرونت بعت password هنا، إحنا مش بناخده
-  const { fullName, email, mobileNumber, roleId, departmentId } = req.body;
+  // شيلنا roleId واستقبلنا departmentId بس
+  const { fullName, email, mobileNumber, departmentId } = req.body;
 
-  // 2️⃣ نبعت للداتابيز (من غير باسورد)
   const updatedUser = await Admin.updateSystemUser(
     id, 
     fullName, 
     email, 
     mobileNumber, 
-    roleId,
-    departmentId
+    departmentId 
   );
 
   if (!updatedUser) {
@@ -209,7 +206,7 @@ export const updateUser = asyncWrapper(async (req, res, next) => {
 
   res.status(200).json({ 
     status: httpStatusText.SUCCESS, 
-    message: "تم تحديث بيانات المستخدم بنجاح",
+    message: "تم تحديث بيانات المستخدم والقسم بنجاح",
     data: { user: updatedUser } 
   });
 });

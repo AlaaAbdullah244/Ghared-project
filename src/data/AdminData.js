@@ -180,9 +180,11 @@ export const deleteSystemUser = async (userId) => {
   }
 };
 
-export const updateSystemUser = async (userId, full_name, email, mobile_number, role_id, department_id) => {
+export const updateSystemUser = async (userId, full_name, email, mobile_number, department_id) => {
   const query = `
     WITH 
+    -- 1️⃣ تحديث بيانات المستخدم الأساسية (الاسم، الإيميل...)
+    -- الـ ID هنا ثابت ومستحيل يتغير لأننا بنستخدم WHERE user_id
     upd_user AS (
       UPDATE "User"
       SET 
@@ -190,26 +192,45 @@ export const updateSystemUser = async (userId, full_name, email, mobile_number, 
         email = COALESCE($3, email),
         mobile_number = COALESCE($4, mobile_number)
       WHERE user_id = $1
+      RETURNING user_id, full_name, email, mobile_number
+    ),
+
+    -- 2️⃣ البحث عن الرول المناسبة للقسم الجديد
+    target_role AS (
+      SELECT dr.dep_role_id 
+      FROM "Department_Role" dr
+      INNER JOIN "Role" r ON dr.role_id = r.role_id
+      WHERE dr.department_id = $5 
+      AND r.role_level <> 0 
+      LIMIT 1 
+    ),
+
+    -- 3️⃣ محاولة تعديل العضوية الحالية (UPDATE ONLY)
+    -- لو اليوزر عنده عضوية، هنعدل الـ dep_role_id بس، ومش هنغير الـ user_id
+    try_update_membership AS (
+      UPDATE "User_Membership"
+      SET 
+        dep_role_id = (SELECT dep_role_id FROM target_role),
+        start_date = CURRENT_DATE
+      WHERE user_id = $1
+      AND EXISTS (SELECT 1 FROM target_role) -- لازم نكون لقينا رول جديدة
       RETURNING user_id
     ),
-    get_role AS (
-      SELECT dep_role_id FROM "Department_Role" WHERE department_id = $6 AND role_id = $5
-    ),
-    ins_role AS (
-      INSERT INTO "Department_Role" (department_id, role_id)
-      SELECT $6, $5
-      WHERE NOT EXISTS (SELECT 1 FROM get_role)
-      RETURNING dep_role_id
-    ),
-    final_role AS (
-      SELECT dep_role_id FROM get_role
-      UNION ALL
-      SELECT dep_role_id FROM ins_role
+
+    -- 4️⃣ إضافة عضوية جديدة فقط في حالة عدم وجود واحدة (INSERT IF NOT EXISTS)
+    -- الكويري ده هيشتغل بس لو الخطوة رقم 3 مرجعتش حاجة (يعني اليوزر مكنش متضاف قبل كده)
+    do_insert_membership AS (
+      INSERT INTO "User_Membership" (user_id, dep_role_id, start_date)
+      SELECT 
+        (SELECT user_id FROM upd_user), 
+        (SELECT dep_role_id FROM target_role), 
+        CURRENT_DATE
+      WHERE NOT EXISTS (SELECT 1 FROM try_update_membership) -- شرط: لو التعديل فشل
+      AND EXISTS (SELECT 1 FROM target_role)
     )
-    UPDATE "User_Membership"
-    SET dep_role_id = (SELECT dep_role_id FROM final_role)
-    WHERE user_id = (SELECT user_id FROM upd_user)
-    RETURNING *;
+
+    -- 5️⃣ إرجاع بيانات اليوزر
+    SELECT * FROM upd_user;
   `;
 
   const result = await pool.query(query, [
@@ -217,13 +238,11 @@ export const updateSystemUser = async (userId, full_name, email, mobile_number, 
     full_name, 
     email, 
     mobile_number, 
-    role_id, 
-    department_id
+    department_id 
   ]);
 
   return result.rows[0];
 };
-
 
 
 
