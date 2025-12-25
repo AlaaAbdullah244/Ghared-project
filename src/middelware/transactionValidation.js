@@ -1,13 +1,12 @@
 import appError from "../utils/appError.js";
 
 // Manual validation middleware for transactions.
-// This approach is used because express-validator's isArray() check
-// is too strict for multipart/form-data, which sends single values as strings, not arrays.
 export const validateTransaction = (req, res, next) => {
     const { 
         content, 
         is_draft, 
-        receivers 
+        receivers, 
+        target_department_id // 👈 ضفنا المتغير ده عشان نفحص وجوده
     } = req.body;
 
     // 1. Validate that content exists and is not empty.
@@ -15,13 +14,19 @@ export const validateTransaction = (req, res, next) => {
         return next(appError.create("محتوى المعاملة مطلوب", 400));
     }
 
-    // 2. For non-drafts, validate that at least one receiver is present.
+    // 2. For non-drafts, validate destination (Receivers OR Department).
     const isDraftBool = (is_draft === true || is_draft === 'true');
     
     if (!isDraftBool) {
-        // This check handles cases where receivers is undefined, null, an empty string, OR an empty array.
-        if (!receivers || receivers.length === 0) {
-            return next(appError.create("يجب اختيار مستلم واحد على الأقل للإرسال", 400));
+        // بنشوف هل تم تحديد أشخاص؟ (سواء مصفوفة أو قيمة واحدة)
+        const hasReceivers = receivers && receivers.length > 0;
+        
+        // بنشوف هل تم تحديد قسم؟
+        const hasTargetDept = target_department_id && target_department_id !== "";
+
+        // لو مفيش أشخاص ولا فيه قسم، نرجع إيرور
+        if (!hasReceivers && !hasTargetDept) {
+            return next(appError.create("يجب اختيار مستلم واحد على الأقل أو تحديد قسم كامل للإرسال", 400));
         }
     }
 
