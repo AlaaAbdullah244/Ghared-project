@@ -1,33 +1,8 @@
-// import nodemailer from "nodemailer";
-
-// const sendEmail = async (options) => {
-//   // Create a transporter
-//   const transporter = nodemailer.createTransport({
-//     service: "Gmail", // Or use 'host' and 'port' for other providers
-//     auth: {
-//       user: process.env.EMAIL_USERNAME,
-//       pass: process.env.EMAIL_PASSWORD,
-//     },
-//   });
-
-//   // Define email options
-//   const mailOptions = {
-//     from: "System Notification <no-reply@system.com>",
-//     to: options.email,
-//     subject: options.subject,
-//     text: options.message,
-//   };
-
-//   // Send the email
-//   await transporter.sendMail(mailOptions);
-// };
-
-// export default sendEmail;
 import nodemailer from "nodemailer";
 
 const sendEmail = async (options) => {
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
+    host: "smtp-relay.brevo.com",
     port: 587,
     secure: false,
     auth: {
@@ -41,7 +16,7 @@ const sendEmail = async (options) => {
   });
 
   const mailOptions = {
-    from: `"University System" <${process.env.EMAIL_USER}>`,
+    from: `baina <bainamagdy8@gmail.com>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
