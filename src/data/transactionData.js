@@ -4,11 +4,28 @@ import { pool } from "../config/db.js";
 // 1. دوال الاستعلام (Queries)
 // ============================================================
 
+// (جديد) جلب ID نوع الإجراء بالاسم
+export const getActionTypeIdByName = async (actionName) => {
+  const query =
+    "SELECT action_type_id FROM action_types WHERE action_name = $1";
+  const result = await pool.query(query, [actionName]);
+  if (result.rows.length === 0) {
+    // If the action type doesn't exist, maybe we should create it?
+    // For now, we'll throw an error to indicate a problem.
+    const createQuery =
+      "INSERT INTO action_types (action_name) VALUES ($1) RETURNING action_type_id";
+    const createResult = await pool.query(createQuery, [actionName]);
+    return createResult.rows[0].action_type_id;
+    // throw new Error(`Action type '${actionName}' not found in action_types table.`);
+  }
+  return result.rows[0].action_type_id;
+};
+
 // جلب أنواع المعاملات
 export const getTransactionTypes = async () => {
-    const query = `SELECT type_id AS id, type_name AS name FROM "Transaction_Type"`;
-    const result = await pool.query(query);
-    return result.rows;
+  const query = `SELECT type_id AS id, type_name AS name FROM "Transaction_Type"`;
+  const result = await pool.query(query);
+  return result.rows;
 };
 
 // جلب المستلمين (Raw Data - سيتم تجميعها في الكنترولر)
@@ -41,19 +58,19 @@ export const getReceiversByLevel = async (userRoleLevel) => {
 
 // جلب المعاملات المرسلة من قبل المستخدم
 export const getUserSentTransactions = async (userId) => {
-    const query = `
+  const query = `
         SELECT transaction_id, code, subject, date , current_status
         FROM "Transaction" 
         WHERE sender_user_id = $1 AND is_draft = false 
         ORDER BY date DESC
     `;
-    const result = await pool.query(query, [userId]);
-    return result.rows;
+  const result = await pool.query(query, [userId]);
+  return result.rows;
 };
 
 // البريد الوارد (المعاملات التي تحتاج لرد)
 export const getUserInboxTransactions = async (userId) => {
-    const query = `
+  const query = `
         SELECT 
             T.transaction_id, T.code, T.subject, T.date,
             U.full_name AS sender_name
@@ -69,15 +86,16 @@ export const getUserInboxTransactions = async (userId) => {
             )
         ORDER BY T.date DESC;
     `;
-    const result = await pool.query(query, [userId]);
-    return result.rows;
+  const result = await pool.query(query, [userId]);
+  return result.rows;
 };
 
 // جلب تفاصيل المعاملة الأساسية
 export const getTransactionDetailsById = async (transId) => {
-    const query = `
+  const query = `
         SELECT 
             T.transaction_id, T.subject, T.content, T.code, T.date, T.current_status,
+            T.type_id,
             U.full_name AS sender_name,
             TP.type_name
         FROM "Transaction" T
@@ -85,20 +103,20 @@ export const getTransactionDetailsById = async (transId) => {
         LEFT JOIN "Transaction_Type" TP ON T.type_id = TP.type_id
         WHERE T.transaction_id = $1
     `;
-    const result = await pool.query(query, [transId]);
-    return result.rows[0];
+  const result = await pool.query(query, [transId]);
+  return result.rows[0];
 };
 
 // جلب المرفقات
 export const getTransactionAttachments = async (transId) => {
-    const query = `SELECT attachment_id, file_path, description, attachment_date FROM "Attachment" WHERE transaction_id = $1`;
-    const result = await pool.query(query, [transId]);
-    return result.rows;
+  const query = `SELECT attachment_id, file_path, description, attachment_date FROM "Attachment" WHERE transaction_id = $1`;
+  const result = await pool.query(query, [transId]);
+  return result.rows;
 };
 
-// 🔥 (جديد) جلب التتبع الكامل (Timeline)
+// 🔥 (معدل) جلب التتبع الكامل (Timeline)
 export const getTransactionTimeline = async (transId) => {
-    const query = `
+  const query = `
         SELECT * FROM (
             -- 1. حركة انتقال المعاملة (Path)
             SELECT 
@@ -118,11 +136,12 @@ export const getTransactionTimeline = async (transId) => {
             SELECT 
                 'action' AS type,
                 A.execution_date AS date,
-                A.action_name AS title,
+                COALESCE(AT.action_name, A.action_name) AS title, -- تعديل: جلب الاسم من الجدول الجديد مع الاحتفاظ بالقديم
                 A.annotation AS description,
                 U.full_name AS performer,
                 D.department_name AS department -- قسم الموظف الذي قام بالإجراء
             FROM "Action" A
+            LEFT JOIN action_types AT ON A.action_type_id = AT.action_type_id -- تعديل: ربط مع جدول أنواع الإجراءات
             JOIN "User" U ON A.performer_user_id = U.user_id
             LEFT JOIN "User_Membership" UM ON U.user_id = UM.user_id
             LEFT JOIN "Department_Role" DR ON UM.dep_role_id = DR.dep_role_id
@@ -146,8 +165,8 @@ export const getTransactionTimeline = async (transId) => {
         ) AS Timeline
         ORDER BY date ASC;
     `;
-    const result = await pool.query(query, [transId]);
-    return result.rows;
+  const result = await pool.query(query, [transId]);
+  return result.rows;
 };
 
 // ============================================================
@@ -155,31 +174,34 @@ export const getTransactionTimeline = async (transId) => {
 // ============================================================
 
 export const getUserName = async (userId) => {
-    const result = await pool.query(`SELECT full_name FROM "User" WHERE user_id = $1`, [userId]);
-    return result.rows[0]?.full_name || "Unknown";
+  const result = await pool.query(
+    `SELECT full_name FROM "User" WHERE user_id = $1`,
+    [userId]
+  );
+  return result.rows[0]?.full_name || "Unknown";
 };
 
 export const getUserDepartmentId = async (userId) => {
-    const query = `
+  const query = `
         SELECT D.department_id 
         FROM "User_Membership" UM
         JOIN "Department_Role" DR ON UM.dep_role_id = DR.dep_role_id
         JOIN "Department" D ON DR.department_id = D.department_id
         WHERE UM.user_id = $1 LIMIT 1
     `;
-    const result = await pool.query(query, [userId]);
-    return result.rows[0];
+  const result = await pool.query(query, [userId]);
+  return result.rows[0];
 };
 
 export const getUsersByDepartmentId = async (client, departmentId) => {
-    const query = `
+  const query = `
         SELECT U.user_id FROM "User" U
         JOIN "User_Membership" UM ON U.user_id = UM.user_id
         JOIN "Department_Role" DR ON UM.dep_role_id = DR.dep_role_id
         WHERE DR.department_id = $1
     `;
-    const result = await client.query(query, [departmentId]);
-    return result.rows.map(r => r.user_id);
+  const result = await client.query(query, [departmentId]);
+  return result.rows.map((r) => r.user_id);
 };
 
 // ============================================================
@@ -187,55 +209,99 @@ export const getUsersByDepartmentId = async (client, departmentId) => {
 // ============================================================
 
 export const insertTransaction = async (client, data) => {
-    const query = `
+  const query = `
         INSERT INTO "Transaction" (subject, content, type_id, sender_user_id, parent_transaction_id, is_draft, current_status, code, date)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING transaction_id;
     `;
-    const res = await client.query(query, [
-        data.subject, data.content, data.type_id, data.sender_id, data.parent_id, 
-        data.is_draft, data.current_state, data.code
-    ]);
-    return res.rows[0].transaction_id;
+  const res = await client.query(query, [
+    data.subject,
+    data.content,
+    data.type_id,
+    data.sender_id,
+    data.parent_id,
+    data.is_draft,
+    data.current_state,
+    data.code,
+  ]);
+  return res.rows[0].transaction_id;
 };
 
 export const insertAttachment = async (client, fileData) => {
-    const query = `INSERT INTO "Attachment" (file_path, description, transaction_id, attachment_date) VALUES ($1, $2, $3, NOW())`;
-    await client.query(query, [fileData.path, fileData.description || fileData.originalname, fileData.transaction_id]);
+  const query = `INSERT INTO "Attachment" (file_path, description, transaction_id, attachment_date) VALUES ($1, $2, $3, NOW())`;
+  await client.query(query, [
+    fileData.path,
+    fileData.description || fileData.originalname,
+    fileData.transaction_id,
+  ]);
 };
 
 export const insertReceiver = async (client, transId, receiverId) => {
-    await client.query(`INSERT INTO "Transaction_Receiver" (transaction_id, receiver_user_id) VALUES ($1, $2)`, [transId, receiverId]);
+  await client.query(
+    `INSERT INTO "Transaction_Receiver" (transaction_id, receiver_user_id) VALUES ($1, $2)`,
+    [transId, receiverId]
+  );
 };
 
-export const insertTransactionPath = async (client, { transId, fromDeptId, toDeptId, notes }) => {
-    const query = `INSERT INTO "Transaction_Path" (transaction_id, from_department_id, to_department_id, path_notes, created_at) VALUES ($1, $2, $3, $4, NOW())`;
-    await client.query(query, [transId, fromDeptId, toDeptId, notes]);
+export const insertTransactionPath = async (
+  client,
+  { transId, fromDeptId, toDeptId, notes }
+) => {
+  const query = `INSERT INTO "Transaction_Path" (transaction_id, from_department_id, to_department_id, path_notes, created_at) VALUES ($1, $2, $3, $4, NOW())`;
+  await client.query(query, [transId, fromDeptId, toDeptId, notes]);
 };
 
+// (معدل)
 export const insertAction = async (client, data) => {
-    const query = `
-        INSERT INTO "Action" (action_name, execution_date, annotation, transaction_id, performer_user_id, target_department_id)
-        VALUES ($1, NOW(), $2, $3, $4, $5) RETURNING action_id;
+  const query = `
+        INSERT INTO "Action" (action_type_id, execution_date, annotation, transaction_id, performer_user_id, target_department_id, action_name)
+        SELECT $1, NOW(), $2, $3, $4, $5, at.action_name
+        FROM action_types at
+        WHERE at.action_type_id = $1
+        RETURNING action_id;
     `;
-    const res = await client.query(query, [data.action_name, data.annotation, data.transaction_id, data.performer_user_id, data.target_department_id]);
-    return res.rows[0].action_id;
+  const res = await client.query(query, [
+    data.action_type_id,
+    data.annotation,
+    data.transaction_id,
+    data.performer_user_id,
+    data.target_department_id,
+  ]);
+  return res.rows[0].action_id;
 };
 
 export const updateTransactionStatus = async (client, transId, status) => {
-    await client.query(`UPDATE "Transaction" SET current_status = $2 WHERE transaction_id = $1`, [transId, status]);
+  await client.query(
+    `UPDATE "Transaction" SET current_status = $2 WHERE transaction_id = $1`,
+    [transId, status]
+  );
 };
 
-export const createAndEmitNotification = async (client, { userId, transId, subject, snippet, senderName }, io) => {
-    const query = `INSERT INTO "Notification" (user_id, transaction_id, is_read) VALUES ($1, $2, false) RETURNING notification_id`;
-    const res = await client.query(query, [userId, transId]);
-    
-    if (io) {
-        io.to(`user_${userId}`).emit("new_notification", {
-            id: res.rows[0].notification_id,
-            subject,
-            messageSnippet: snippet,
-            senderName,
-            date: new Date()
-        });
-    }
+export const createAndEmitNotification = async (
+  client,
+  { userId, transId, subject, snippet, senderName },
+  io
+) => {
+  const query = `INSERT INTO "Notification" (user_id, transaction_id, is_read) VALUES ($1, $2, false) RETURNING notification_id`;
+  const res = await client.query(query, [userId, transId]);
+
+  if (io) {
+    io.to(`user_${userId}`).emit("new_notification", {
+      id: res.rows[0].notification_id,
+      subject,
+      messageSnippet: snippet,
+      senderName,
+      date: new Date(),
+    });
+  }
+};
+
+// نسخ المرفقات من معاملة إلى أخرى (للاستخدام في الإحالة)
+export const copyAttachments = async (client, fromTransId, toTransId) => {
+  const query = `
+        INSERT INTO "Attachment" (file_path, description, transaction_id, attachment_date)
+        SELECT file_path, description, $2, NOW()
+        FROM "Attachment"
+        WHERE transaction_id = $1
+    `;
+  await client.query(query, [fromTransId, toTransId]);
 };

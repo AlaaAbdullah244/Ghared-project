@@ -120,6 +120,14 @@ export const login = asyncWrapper(async (req, res, next) => {
     return next(error);
   }
 
+  // 5️⃣ جلب كل الأدوار المرتبطة بالمستخدم (تم التقديم للتحقق من الأدمن)
+  const userRoles = await User.getUserRoles(user.user_id);
+
+  // ✅ منع الأدمن من الدخول من بوابة المستخدمين
+  if (userRoles.some((r) => r.role_level === 0)) {
+    const error = appError.create("غير مصرح للمسؤولين بالدخول من بوابة المستخدمين، يرجى استخدام بوابة الإدارة", 403, httpStatusText.FAIL);
+    return next(error);
+  }
 
   if (user.is_first_login) {
     const token = await generateJWT({  id: user.user_id });
@@ -129,16 +137,6 @@ export const login = asyncWrapper(async (req, res, next) => {
       method: "PUT"
     });
   }
-
-  // 3️⃣ التحقق من الباسورد (هذا الجزء مكرر ويمكن حذفه، لكن سأبقيه مؤقتاً للتأكد)
-
-  if (!matchedPassword) {
-    const error = appError.create("البريد الإلكتروني أو كلمة المرور غير صحيحة", 401, httpStatusText.FAIL);
-    return next(error);
-  }
-
-  // 5️⃣ جلب كل الأدوار المرتبطة بالمستخدم
-  const userRoles = await User.getUserRoles(user.user_id);
 
   const role = userRoles[0] ;
   const roleLevel = userRoles[0];
@@ -204,7 +202,3 @@ export const login = asyncWrapper(async (req, res, next) => {
 //     data: { token }
 //   });
 // });
-
-
-
-
