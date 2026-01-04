@@ -38,10 +38,29 @@ const sendTransactionEmail = async (userId, subject, message) => {
   try {
     const user = await UserData.getUserById(userId);
     if (user && user.length > 0) {
+      // تصميم HTML للإيميل مع دعم اللغة العربية (RTL)
+      const htmlContent = `
+        <div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; text-align: right;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="background-color: #2c3e50; color: #ffffff; padding: 20px; text-align: center;">
+              <h2 style="margin: 0; font-size: 24px;">نظام إدارة المعاملات</h2>
+            </div>
+            <div style="padding: 30px; color: #333333; line-height: 1.8; font-size: 16px;">
+              <h3 style="color: #2980b9; margin-top: 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">${subject}</h3>
+              <p style="white-space: pre-wrap;">${message}</p>
+            </div>
+            <div style="background-color: #ecf0f1; padding: 15px; text-align: center; font-size: 12px; color: #7f8c8d;">
+              <p style="margin: 0;">هذا إشعار آلي، يرجى عدم الرد على هذا البريد.</p>
+            </div>
+          </div>
+        </div>
+      `;
+
       await sendEmail({
         email: user[0].email,
         subject: subject,
         message: message,
+        html: htmlContent,
       });
     }
   } catch (error) {
@@ -201,7 +220,7 @@ export const createTransaction = asyncWrapper(async (req, res, next) => {
         sendTransactionEmail(
           receiverId,
           `وارد جديد: ${subject}`,
-          `مرحباً،\n\nلديك معاملة جديدة بعنوان: "${subject}"\nالمرسل: ${senderName}\n\nيرجى الدخول للنظام للاطلاع عليها.`
+          `مرحباً بك،\n\nتم استلام معاملة جديدة في صندوق الوارد الخاص بك.\n\n📌 **العنوان:** ${subject}\n👤 **المرسل:** ${senderName}\n\nيرجى تسجيل الدخول إلى النظام للاطلاع على التفاصيل واتخاذ الإجراء اللازم.`
         );
       }
     }
@@ -356,7 +375,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         sendTransactionEmail(
           receiverId,
           `إحالة جديدة: ${transactionInfo.subject}`,
-          `مرحباً،\n\nتمت إحالة معاملة إليك بعنوان: "${transactionInfo.subject}"\nمن: ${senderName}\n\nيرجى الدخول للنظام للاطلاع عليها.`
+          `مرحباً بك،\n\nتمت إحالة معاملة إليك للمتابعة.\n\n📌 **العنوان:** ${transactionInfo.subject}\n👤 **المحيل:** ${senderName}\n\nيرجى تسجيل الدخول إلى النظام للاطلاع على التفاصيل.`
         );
       }
     } else {
@@ -383,7 +402,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         sendTransactionEmail(
           transactionInfo.sender_id,
           `تمت الموافقة على: ${transactionInfo.subject}`,
-          `مرحباً،\n\nتمت الموافقة على معاملتك "${transactionInfo.subject}" من قبل ${performerName}.`
+          `مرحباً بك،\n\nنود إعلامك بأنه تمت **الموافقة** على المعاملة الخاصة بك.\n\n📌 **العنوان:** ${transactionInfo.subject}\n👤 **بواسطة:** ${performerName}`
         );
       } else if (action_name === "رفض") {
         newStatus = "تم الرفض";
@@ -406,7 +425,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         sendTransactionEmail(
           transactionInfo.sender_id,
           `تم رفض: ${transactionInfo.subject}`,
-          `مرحباً،\n\nتم رفض معاملتك "${transactionInfo.subject}" من قبل ${performerName}.`
+          `مرحباً بك،\n\nنود إعلامك بأنه تم **رفض** المعاملة الخاصة بك.\n\n📌 **العنوان:** ${transactionInfo.subject}\n👤 **بواسطة:** ${performerName}`
         );
       } else if (action_name === "حفظ وإغلاق") newStatus = "محفوظة";
 
