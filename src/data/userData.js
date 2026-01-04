@@ -22,6 +22,23 @@ export const getUserById = async (user_id) => {
     return result.rows;
 };
 
+export const getUserProfileData = async (userId) => {
+    const query = `
+        SELECT 
+            user_id, 
+            full_name, 
+            email, 
+            mobile_number, 
+            landline, 
+            fax_number, 
+            profile_picture,
+            is_first_login
+        FROM "User"
+        WHERE user_id = $1
+    `;
+    const result = await pool.query(query, [userId]);
+    return result.rows[0];
+};
 
  export const getUserRoles = async (userId)=>{
     // الاستعلام SQL الذي يربط الجداول كما تم شرحه سابقاً
@@ -95,6 +112,3 @@ export const updateUserProfileData = async (
  
   return result.rows[0]; // ✅ دلوقتي هترجع بيانات اليوزر بعد التحديث
 };
-
-
-

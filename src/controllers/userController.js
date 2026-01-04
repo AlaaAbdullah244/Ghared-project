@@ -9,6 +9,20 @@ import { validationResult } from "express-validator";
 
 
 
+export const getUserProfile = asyncWrapper(async (req, res, next) => {
+  const userId = req.userId;
+  const user = await User.getUserProfileData(userId);
+
+  if (!user) {
+    const error = appError.create("المستخدم غير موجود", 404, httpStatusText.FAIL);
+    return next(error);
+  }
+
+  return res.status(200).json({
+    status: httpStatusText.SUCCESS,
+    data: { user },
+  });
+});
 
 export const updateUser = asyncWrapper(async (req, res, next) => {
   // ✅ التحقق من وجود أخطاء في الإدخال
