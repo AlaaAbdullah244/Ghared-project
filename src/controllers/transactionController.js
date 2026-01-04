@@ -198,7 +198,7 @@ export const createTransaction = asyncWrapper(async (req, res, next) => {
         );
 
         // 4. إرسال إيميل
-        await sendTransactionEmail(
+        sendTransactionEmail(
           receiverId,
           `وارد جديد: ${subject}`,
           `مرحباً،\n\nلديك معاملة جديدة بعنوان: "${subject}"\nالمرسل: ${senderName}\n\nيرجى الدخول للنظام للاطلاع عليها.`
@@ -353,7 +353,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         );
 
         // 5. إرسال إيميل للمستلم الجديد
-        await sendTransactionEmail(
+        sendTransactionEmail(
           receiverId,
           `إحالة جديدة: ${transactionInfo.subject}`,
           `مرحباً،\n\nتمت إحالة معاملة إليك بعنوان: "${transactionInfo.subject}"\nمن: ${senderName}\n\nيرجى الدخول للنظام للاطلاع عليها.`
@@ -380,7 +380,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         );
 
         // إرسال إيميل لصاحب المعاملة
-        await sendTransactionEmail(
+        sendTransactionEmail(
           transactionInfo.sender_id,
           `تمت الموافقة على: ${transactionInfo.subject}`,
           `مرحباً،\n\nتمت الموافقة على معاملتك "${transactionInfo.subject}" من قبل ${performerName}.`
@@ -403,7 +403,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         );
 
         // إرسال إيميل لصاحب المعاملة
-        await sendTransactionEmail(
+        sendTransactionEmail(
           transactionInfo.sender_id,
           `تم رفض: ${transactionInfo.subject}`,
           `مرحباً،\n\nتم رفض معاملتك "${transactionInfo.subject}" من قبل ${performerName}.`
