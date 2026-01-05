@@ -34,8 +34,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ 2. Static files
-app.use('/uploads/Images', express.static(path.join(__dirname, 'uploads')));
-
+// الوصول سيكون عبر /uploads/اسم_المجلد/اسم_الصورة
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // ✅ 3. Routes
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes); 
