@@ -40,21 +40,43 @@ const sendTransactionEmail = async (userId, subject, message) => {
     if (user && user.length > 0) {
       // تصميم HTML للإيميل مع دعم اللغة العربية (RTL)
       const htmlContent = `
-        <div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; text-align: right;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <div style="background-color: #2c3e50; color: #ffffff; padding: 20px; text-align: center;">
-              <h2 style="margin: 0; font-size: 24px;">نظام إدارة المعاملات</h2>
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <div dir="rtl" style="background-color: #f4f7f6; padding: 40px 20px; text-align: right;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e1e4e8;">
+            
+            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: #ffffff; padding: 30px; text-align: center;">
+                <h2 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: 0.5px;">نظام إدارة المعاملات</h2>
             </div>
-            <div style="padding: 30px; color: #333333; line-height: 1.8; font-size: 16px;">
-              <h3 style="color: #2980b9; margin-top: 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">${subject}</h3>
-              <p style="white-space: pre-wrap;">${message}</p>
+
+            <div style="padding: 40px 30px; color: #333333; line-height: 1.8; font-size: 16px;">
+                <div style="margin-bottom: 20px;">
+                    <span style="background-color: #e3f2fd; color: #1565c0; padding: 5px 12px; border-radius: 20px; font-size: 14px; font-weight: bold;">موضوع الرسالة</span>
+                    <h3 style="color: #2c3e50; margin-top: 10px; margin-bottom: 0; font-size: 20px;">${subject}</h3>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;">
+
+                <div style="background-color: #fcfcfc; border-right: 4px solid #2a5298; padding: 15px 20px; border-radius: 4px;">
+                    <p style="white-space: pre-wrap; margin: 0; color: #444444;">${message}</p>
+                </div>
             </div>
-            <div style="background-color: #ecf0f1; padding: 15px; text-align: center; font-size: 12px; color: #7f8c8d;">
-              <p style="margin: 0;">هذا إشعار آلي، يرجى عدم الرد على هذا البريد.</p>
+
+            <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #eeeeee;">
+                <p style="margin: 0; font-size: 13px; color: #888888;">هذا إشعار آلي من النظام، يرجى عدم الرد على هذا البريد.</p>
+                <p style="margin: 5px 0 0; font-size: 12px; color: #aaaaaa;">&copy; ${new Date().getFullYear()} جميع الحقوق محفوظة</p>
             </div>
-          </div>
         </div>
-      `;
+    </div>
+</body>
+</html>
+`;
+     
 
       await sendEmail({
         email: user[0].email,
