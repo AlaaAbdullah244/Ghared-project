@@ -4,6 +4,11 @@ import httpStatusText from "../utils/httpStatusText.js";
 import asyncWrapper from "./asyncwraper.js";
 
 export const checkTransactionReceiver = asyncWrapper(async (req, res, next) => {
+    // في حالة إنشاء معاملة جديدة (لا يوجد ID في الرابط)، نتخطى التحقق
+    if (!req.params.id) {
+        return next();
+    }
+
     const { id } = req.params; // Transaction ID from URL
     const userId = req.userId; // User ID from Token
 

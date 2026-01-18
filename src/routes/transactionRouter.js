@@ -35,6 +35,7 @@ router.get("/file/:filename", transController.downloadAttachment);
 router.post("/create", 
     upload.array("attachments"), 
     validateTransaction, 
+    checkTransactionReceiver,
     transController.createTransaction
 );
 
