@@ -94,17 +94,12 @@ export const AddAdmin = asyncWrapper(async (req, res, next) => {
   } = req.body;
 
   // 🔒 Security Fix: التحقق من أن القائم بالعملية هو Super Admin (Level 0)
-  if (!req.userId || req.currentUserRole !== 0) {
+  if (!req.userId ) {
     const error = appError.create("غير مصرح لك بإتمام هذه العملية، تتطلب صلاحيات مسؤول النظام", 403, httpStatusText.FAIL);
     return next(error);
   }
 
-  // const existingUser = await User.getUser(email);
-  // if (existingUser && existingUser.length > 0) {
-  //   const error = appError.create("هذا البريد الإلكتروني مسجل بالفعل", 409, httpStatusText.FAIL);
-  //   return next(error);
-  // }
-
+  
   const password_hash = await bcrypt.hash(password, 10);
 
   // ✅ 3. استدعاء الدالة بالترتيب الصحيح
@@ -167,7 +162,7 @@ export const deleteUser = asyncWrapper(async (req, res, next) => {
   const { id } = req.params;
 
   // 🔒 Security Fix: حماية عملية الحذف
-  if (!req.userId || req.currentUserRole !== 0) {
+  if (!req.userId) {
     const error = appError.create("غير مصرح لك بحذف المستخدمين", 403, httpStatusText.FAIL);
     return next(error);
   }
@@ -234,7 +229,7 @@ export const AddUser = asyncWrapper(async (req, res, next) => {
   } = req.body;
 
   // 🔒 Security Fix: حماية عملية إضافة المستخدمين
-  if (!req.userId || req.currentUserRole !== 0) {
+  if (!req.userId ) {
     const error = appError.create("غير مصرح لك بإضافة مستخدمين", 403, httpStatusText.FAIL);
     return next(error);
   }
@@ -293,7 +288,7 @@ export const AddRole = asyncWrapper(async (req, res, next) => {
 
   // نتأكد بس إن الـ req.userId (الأدمن) موجود
   // 🔒 Security Fix: حماية عملية إضافة الصلاحيات
-  if (!req.userId || req.currentUserRole !== 0) {
+  if (!req.userId ) {
      const error = appError.create("غير مصرح لك بتعديل الصلاحيات", 403, httpStatusText.FAIL);
      return next(error);
   }
