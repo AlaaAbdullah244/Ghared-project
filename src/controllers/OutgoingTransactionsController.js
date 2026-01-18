@@ -15,7 +15,7 @@ import appError from "../utils/appError.js";
 // @route GET /api/transactions/outbox/:user_id
 // @access Private
 export const getUserOutboxTransactions = async (req, res, next) => {
-    const { user_id } = req.userId;
+    const user_id = req.userId;
     try {
         const query = `
             SELECT *
@@ -75,19 +75,20 @@ export const getTransactionById = async (req, res, next) => {
 export const updateTransaction = async (req, res, next) => {
     const { id } = req.params;
     const { content, type_id, subject, code } = req.body;
+    const userId = req.userId; // 👈 لازم نجيب الآيدي بتاع اليوزر
     
     try {
         const updateQuery = `
             UPDATE public."Transaction" 
             SET content = $1, type_id = $2, subject = $3, code = $4, last_updated_at = NOW()
-            WHERE transaction_id = $5
+            WHERE transaction_id = $5 AND sender_user_id = $6
             RETURNING *;
         `;
 
-        const result = await pool.query(updateQuery, [content, type_id, subject, code, id]);
+        const result = await pool.query(updateQuery, [content, type_id, subject, code, id, userId]);
 
         if (result.rowCount === 0) {
-            return next(appError.create("لم يتم العثور على المعاملة أو تعذر تحديثها.", 404, "fail"));
+            return next(appError.create("لم يتم العثور على المعاملة أو ليس لديك صلاحية لتعديلها.", 404, "fail"));
         }
 
         res.status(200).json({
@@ -108,16 +109,17 @@ export const updateTransaction = async (req, res, next) => {
 // @access Private
 export const deleteTransaction = async (req, res, next) => {
     const { id } = req.params;
+    const userId = req.userId; // 👈 لازم نجيب الآيدي بتاع اليوزر
     try {
         const deleteQuery = `
             DELETE FROM public."Transaction"
-            WHERE transaction_id = $1
+            WHERE transaction_id = $1 AND sender_user_id = $2
             RETURNING *;
         `;
-        const result = await pool.query(deleteQuery, [id]);
+        const result = await pool.query(deleteQuery, [id, userId]);
 
         if (result.rowCount === 0) {
-            return next(appError.create("لم يتم العثور على المعاملة أو تم حذفها مسبقاً.", 404, "fail"));
+            return next(appError.create("لم يتم العثور على المعاملة أو ليس لديك صلاحية لحذفها.", 404, "fail"));
         }
 
         res.status(200).json({

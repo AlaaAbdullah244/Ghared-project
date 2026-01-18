@@ -485,10 +485,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const downloadAttachment = asyncWrapper(async (req, res, next) => {
+  // Security Fix: Prevent Path Traversal using path.basename
+  const filename = path.basename(req.params.filename);
   const filePath = path.join(
     __dirname,
     "../uploads/transactions",
-    req.params.filename
+    filename
   );
   if (!fs.existsSync(filePath))
     return next(appError.create("الملف غير موجود", 404, httpStatusText.FAIL));

@@ -54,8 +54,9 @@ export const updateUser = asyncWrapper(async (req, res, next) => {
 
   const findUser = await User.getUser(email);
 
-  if (!findUser ||! findUser.length === 0) {
-    const error = appError.create("المستخدم  موجود مسبقا ", 400, httpStatusText.FAIL);
+  // 🔒 Security/Logic Fix: التأكد من أن الإيميل غير مستخدم من قبل شخص *آخر*
+  if (findUser && findUser.length > 0 && findUser[0].user_id !== userId) {
+    const error = appError.create("البريد الإلكتروني مستخدم بالفعل من قبل حساب آخر", 409, httpStatusText.FAIL);
     return next(error);
   }
   

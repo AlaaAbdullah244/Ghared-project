@@ -34,9 +34,6 @@ export const AdminLogin = asyncWrapper(async (req, res, next) => {
 
 //   // 3️⃣ مقارنة كلمة المرور
   const matchedPassword = await bcrypt.compare(password, admin.password_hash);
-  const password_hash = await bcrypt.hash(password, 10);
-
-  console.log(matchedPassword , password ,admin.password_hash ,password_hash)
 
   if (!matchedPassword) {
     const error = appError.create("البريد الإلكتروني أو كلمة المرور غير صحيحة", 401, httpStatusText.FAIL);
@@ -96,8 +93,9 @@ export const AddAdmin = asyncWrapper(async (req, res, next) => {
     // profilePicture 
   } = req.body;
 
-  if (!req.userId) {
-    const error = appError.create("غير مصرح لك بإتمام هذه العملية", 401, httpStatusText.FAIL);
+  // 🔒 Security Fix: التحقق من أن القائم بالعملية هو Super Admin (Level 0)
+  if (!req.userId || req.currentUserRole !== 0) {
+    const error = appError.create("غير مصرح لك بإتمام هذه العملية، تتطلب صلاحيات مسؤول النظام", 403, httpStatusText.FAIL);
     return next(error);
   }
 
@@ -168,6 +166,12 @@ export const getUserById = asyncWrapper(async (req, res, next) => {
 export const deleteUser = asyncWrapper(async (req, res, next) => {
   const { id } = req.params;
 
+  // 🔒 Security Fix: حماية عملية الحذف
+  if (!req.userId || req.currentUserRole !== 0) {
+    const error = appError.create("غير مصرح لك بحذف المستخدمين", 403, httpStatusText.FAIL);
+    return next(error);
+  }
+
   // استدعاء دالة المسح
   const deletedUser = await Admin.deleteSystemUser(id);
 
@@ -229,8 +233,9 @@ export const AddUser = asyncWrapper(async (req, res, next) => {
     departmentId 
   } = req.body;
 
-  if (!req.userId) {
-    const error = appError.create("غير مصرح لك بإتمام هذه العملية", 401, httpStatusText.FAIL);
+  // 🔒 Security Fix: حماية عملية إضافة المستخدمين
+  if (!req.userId || req.currentUserRole !== 0) {
+    const error = appError.create("غير مصرح لك بإضافة مستخدمين", 403, httpStatusText.FAIL);
     return next(error);
   }
 
@@ -287,8 +292,9 @@ export const AddRole = asyncWrapper(async (req, res, next) => {
   const { userId, roleId, departmentId } = req.body;
 
   // نتأكد بس إن الـ req.userId (الأدمن) موجود
-  if (!req.userId) {
-     const error = appError.create("غير مصرح لك بإتمام هذه العملية", 401, httpStatusText.FAIL);
+  // 🔒 Security Fix: حماية عملية إضافة الصلاحيات
+  if (!req.userId || req.currentUserRole !== 0) {
+     const error = appError.create("غير مصرح لك بتعديل الصلاحيات", 403, httpStatusText.FAIL);
      return next(error);
   }
 
