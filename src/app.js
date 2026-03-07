@@ -16,6 +16,7 @@ import outgoingTransactionRoutes from "./routes/OutgoingTransactionsRoutes.js";
 import transactionRoutes from "./routes/transactionRouter.js"; // 👈 ضيفي ده
 import draftRouter from './routes/draftRouter.js';
 import organizationRouter from './routes/OrganizationRoutes.js';
+import reportRoutes from "./routes/reportRouter.js";
 
 
 // Utils & Middlewares
@@ -45,6 +46,7 @@ app.use("/api/outgoingtransactions", outgoingTransactionRoutes);
 app.use("/api/transactions", transactionRoutes); // 👈 ضيفي ده
 app.use('/api/org', organizationRouter);
 app.use('/api/drafts', draftRouter);
+app.use("/api/reports", reportRoutes);
 
 
 app.get("/", (req, res) => {

@@ -57,14 +57,24 @@ export const getReceiversByLevel = async (userRoleLevel) => {
 };
 
 // جلب المعاملات المرسلة من قبل المستخدم
-export const getUserSentTransactions = async (userId) => {
-  const query = `
-        SELECT transaction_id, code, subject, date , current_status
+export const getUserSentTransactions = async (userId, status = null) => {
+  let query = `
+        SELECT transaction_id, code, subject, date, current_status
         FROM "Transaction" 
         WHERE sender_user_id = $1 AND is_draft = false 
-        ORDER BY date DESC
     `;
-  const result = await pool.query(query, [userId]);
+  
+  const queryParams = [userId];
+
+  // إذا تم تمرير حالة (status) في الرابط، نضيفها لشرط البحث
+  if (status) {
+    query += ` AND current_status = $2`;
+    queryParams.push(status);
+  }
+
+  query += ` ORDER BY date DESC`;
+
+  const result = await pool.query(query, queryParams);
   return result.rows;
 };
 

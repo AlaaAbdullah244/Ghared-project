@@ -499,8 +499,17 @@ export const downloadAttachment = asyncWrapper(async (req, res, next) => {
 
 // 6. القوائم (Sent / Inbox)
 export const getMyTransactions = asyncWrapper(async (req, res) => {
-  const data = await TransData.getUserSentTransactions(req.userId);
-  res.status(200).json({ status: httpStatusText.SUCCESS, data });
+  // استخراج الحالة من الرابط (مثال: ?status=تم الرفض)
+  const { status } = req.query; 
+
+  // تمرير الـ userId والحالة لدالة جلب البيانات
+  const data = await TransData.getUserSentTransactions(req.userId, status);
+
+  res.status(200).json({ 
+    status: httpStatusText.SUCCESS, 
+    results: data.length, // إضافة عدد النتائج كما طلبت
+    data 
+  });
 });
 
 export const getInboxTransactions = asyncWrapper(async (req, res) => {
