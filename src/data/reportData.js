@@ -51,3 +51,53 @@ export const getInboxStatistics = async (userId) => {
   const result = await pool.query(query, [userId]);
   return result.rows[0]; 
 };
+
+// ============================================================
+// 3. (جديد) تقرير الأداء السنوي للنظام (Admin)
+// ============================================================
+export const getYearlyProgressStats = async () => {
+  // 1. جلب عدد المعاملات لكل شهر في آخر سنة
+  const monthlyQuery = `
+    SELECT TO_CHAR(date, 'YYYY-MM') as month, COUNT(*) as count
+    FROM "Transaction"
+    WHERE date >= NOW() - INTERVAL '12 months'
+    GROUP BY TO_CHAR(date, 'YYYY-MM')
+    ORDER BY month ASC;
+  `;
+
+  // 2. جلب توزيع الحالات لنفس الفترة
+  const statusQuery = `
+    SELECT current_status, COUNT(*) as count
+    FROM "Transaction"
+    WHERE date >= NOW() - INTERVAL '12 months'
+    GROUP BY current_status;
+  `;
+
+  const [monthlyRes, statusRes] = await Promise.all([
+    pool.query(monthlyQuery),
+    pool.query(statusQuery)
+  ]);
+
+  return { monthly: monthlyRes.rows, statuses: statusRes.rows };
+};
+
+// ============================================================
+// 4. (جديد) تقرير أداء الأقسام (Admin)
+// ============================================================
+export const getDepartmentsPerformanceStats = async () => {
+  const query = `
+    SELECT 
+        D.department_id, 
+        D.department_name,
+        COUNT(TP.transaction_id) AS total_received,
+        COUNT(TP.transaction_id) FILTER (WHERE T.current_status = 'قيد المعالجة') AS pending_transactions
+    FROM "Department" D
+    LEFT JOIN "Transaction_Path" TP ON D.department_id = TP.to_department_id
+    LEFT JOIN "Transaction" T ON TP.transaction_id = T.transaction_id
+    GROUP BY D.department_id, D.department_name
+    ORDER BY pending_transactions DESC; -- الترتيب حسب الأكثر تكدساً
+  `;
+  
+  const result = await pool.query(query);
+  return result.rows;
+};
