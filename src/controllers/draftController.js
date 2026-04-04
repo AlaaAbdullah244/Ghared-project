@@ -64,6 +64,9 @@ export const updateAndPublishDraft = asyncWrapper(async (req, res, next) => {
     try {
         await client.query('BEGIN');
 
+        const user = await UserData.getUserProfileData(userId);
+        const signature_path = isDraftBool ? null : user?.signature_path;
+
         // 1. تحديث بيانات المعاملة في الجدول
         await DraftData.updateDraftDetails(client, id, {
             subject,
@@ -71,7 +74,8 @@ export const updateAndPublishDraft = asyncWrapper(async (req, res, next) => {
             type_id,
             is_draft: isDraftBool,
             current_status: currentStateStr,
-            parent_id: parent_transaction_id || null
+            parent_id: parent_transaction_id || null,
+            signature: signature_path
         });
 
         // 2. إضافة مرفقات جديدة (إن وجدت)

@@ -55,7 +55,7 @@ export const getInboxStatistics = async (userId) => {
 // ============================================================
 // 3. (جديد) تقرير الأداء السنوي للنظام (Admin)
 // ============================================================
-export const getYearlyProgressStats = async () => {
+export const getYearlyProgressStatsWithApprovals = async () => {
   // 1. جلب عدد المعاملات لكل شهر في آخر سنة
   const monthlyQuery = `
     SELECT TO_CHAR(date, 'YYYY-MM') as month, COUNT(*) as count
@@ -73,12 +73,25 @@ export const getYearlyProgressStats = async () => {
     GROUP BY current_status;
   `;
 
-  const [monthlyRes, statusRes] = await Promise.all([
+  // 3. جلب الموافقات مع التواقيع
+  const approvalsQuery = `
+    SELECT 
+        T.subject,
+        U.full_name as performer_name,
+        A.signature_path
+    FROM "Action" A
+    JOIN "Transaction" T ON A.transaction_id = T.transaction_id
+    JOIN "User" U ON A.performer_user_id = U.user_id
+    WHERE A.action_name = 'موافقة' AND A.execution_date >= NOW() - INTERVAL '12 months'
+  `;
+
+  const [monthlyRes, statusRes, approvalsRes] = await Promise.all([
     pool.query(monthlyQuery),
-    pool.query(statusQuery)
+    pool.query(statusQuery),
+    pool.query(approvalsQuery)
   ]);
 
-  return { monthly: monthlyRes.rows, statuses: statusRes.rows };
+  return { monthly: monthlyRes.rows, statuses: statusRes.rows, approvals: approvalsRes.rows };
 };
 
 // ============================================================

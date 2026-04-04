@@ -37,7 +37,8 @@ CREATE TABLE public."Action" (
  annotation text,
  transaction_id integer,
  performer_user_id integer,
- target_department_id integer
+ target_department_id integer,
+ signature_path character varying
 );
 
 
@@ -501,6 +502,7 @@ CREATE TABLE public."User" (
  landline character varying,
  fax_number character varying,
  profile_picture character varying,
+ signature_path character varying,
  is_first_login boolean
 );
 

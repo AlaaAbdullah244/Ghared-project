@@ -179,6 +179,28 @@ export const getTransactionTimeline = async (transId) => {
   return result.rows;
 };
 
+export const getAllTransactions = async () => {
+    const query = `
+      SELECT
+        T.transaction_id,
+        T.subject,
+        T.date,
+        T.current_status,
+        U.full_name AS sender_name,
+        D.department_id,
+        D.department_name
+      FROM "Transaction" T
+      LEFT JOIN "User" U ON T.sender_user_id = U.user_id
+      LEFT JOIN "User_Membership" UM ON U.user_id = UM.user_id
+      LEFT JOIN "Department_Role" DR ON UM.dep_role_id = DR.dep_role_id
+      LEFT JOIN "Department" D ON DR.department_id = D.department_id
+      WHERE T.is_draft = false
+      ORDER BY T.date DESC;
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+  };
+
 // ============================================================
 // 2. دوال المساعدة (Helpers & Inserts)
 // ============================================================
@@ -220,8 +242,8 @@ export const getUsersByDepartmentId = async (client, departmentId) => {
 
 export const insertTransaction = async (client, data) => {
   const query = `
-        INSERT INTO "Transaction" (subject, content, type_id, sender_user_id, parent_transaction_id, is_draft, current_status, code, date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING transaction_id;
+        INSERT INTO "Transaction" (subject, content, type_id, sender_user_id, parent_transaction_id, is_draft, current_status, code, date, signature)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9) RETURNING transaction_id;
     `;
   const res = await client.query(query, [
     data.subject,
@@ -232,6 +254,7 @@ export const insertTransaction = async (client, data) => {
     data.is_draft,
     data.current_state,
     data.code,
+    data.signature,
   ]);
   return res.rows[0].transaction_id;
 };
@@ -263,8 +286,8 @@ export const insertTransactionPath = async (
 // (معدل)
 export const insertAction = async (client, data) => {
   const query = `
-        INSERT INTO "Action" (action_type_id, execution_date, annotation, transaction_id, performer_user_id, target_department_id, action_name)
-        SELECT $1, NOW(), $2, $3, $4, $5, at.action_name
+        INSERT INTO "Action" (action_type_id, execution_date, annotation, transaction_id, performer_user_id, target_department_id, action_name, signature_path)
+        SELECT $1, NOW(), $2, $3, $4, $5, at.action_name, $6
         FROM action_types at
         WHERE at.action_type_id = $1
         RETURNING action_id;
@@ -275,6 +298,7 @@ export const insertAction = async (client, data) => {
     data.transaction_id,
     data.performer_user_id,
     data.target_department_id,
+    data.signature_path,
   ]);
   return res.rows[0].action_id;
 };

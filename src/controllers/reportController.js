@@ -2,6 +2,7 @@
 import asyncWrapper from "../middelware/asyncwraper.js";
 import httpStatusText from "../utils/httpStatusText.js";
 import * as ReportData from "../data/reportData.js";
+import * as TransactionData from "../data/transactionData.js";
 import appError from "../utils/appError.js";
 
 export const getUserDashboardStats = asyncWrapper(async (req, res, next) => {
@@ -54,7 +55,7 @@ export const getAdminYearlyProgress = asyncWrapper(async (req, res, next) => {
     return next(appError.create("غير مصرح لك بالوصول لهذه البيانات", 403, httpStatusText.FAIL));
   }
 
-  const { monthly, statuses } = await ReportData.getYearlyProgressStats();
+  const { monthly, statuses } = await ReportData.getYearlyProgressStatsWithApprovals();
 
   // تنسيق البيانات
   let totalTransactions = 0;
@@ -108,4 +109,163 @@ export const getAdminDepartmentsPerformance = asyncWrapper(async (req, res, next
       departments: formattedStats
     }
   });
+});
+
+import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const generateAnnualReport = asyncWrapper(async (req, res, next) => {
+    const { organizationId } = req.query;
+    let transactions = await TransactionData.getAllTransactions();
+    
+    // Filter for the last year
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    transactions = transactions.filter(t => new Date(t.date) >= oneYearAgo);
+
+    if (organizationId) {
+        transactions = transactions.filter(t => t.department_id == organizationId);
+    }
+
+    // Calculate statistics
+    const monthlyStats = {};
+    const statusStats = {};
+    const totalTransactions = transactions.length;
+
+    transactions.forEach(t => {
+        // Monthly Progress
+        const date = new Date(t.date);
+        const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthlyStats[monthYear] = (monthlyStats[monthYear] || 0) + 1;
+
+        // Status Breakdown
+        statusStats[t.current_status] = (statusStats[t.current_status] || 0) + 1;
+    });
+
+    // Format monthly progress to match the admin dashboard format
+    const monthlyProgress = Object.entries(monthlyStats)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, count]) => ({ month, transactions_count: count }));
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: "تم جلب بيانات وإحصائيات التقرير السنوي بنجاح",
+        data: {
+            total_yearly_transactions: totalTransactions,
+            monthly_progress: monthlyProgress,
+            yearly_status_breakdown: statusStats,
+            transactions_list: transactions
+        }
+    });
+});
+
+export const generateAnnualReportPDF_old = asyncWrapper(async (req, res, next) => {
+    if (req.currentUserRole !== 0) {
+        return next(appError.create("غير مصرح لك بالوصول لهذه البيانات", 403, httpStatusText.FAIL));
+    }
+
+    const { monthly, statuses, approvals } = await ReportData.getYearlyProgressStatsWithApprovals();
+
+    const doc = new PDFDocument({ margin: 50 });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=annual_report.pdf');
+
+    doc.pipe(res);
+
+    // Add content to the PDF
+    doc.fontSize(25).text('Annual Report', { align: 'center' });
+
+    doc.moveDown();
+
+    // Monthly Progress
+    doc.fontSize(20).text('Monthly Progress');
+    const monthlyTable = {
+        headers: ['Month', 'Transactions Count'],
+        rows: monthly.map(row => [row.month, row.count])
+    };
+    // Using a simple table layout
+    let tableTop = doc.y;
+    doc.fontSize(12);
+    const colWidths = [150, 150];
+    let startX = doc.x;
+    let startY = tableTop;
+
+    // Draw headers
+    monthlyTable.headers.forEach((header, i) => {
+        doc.text(header, startX + i * colWidths[i], startY, { width: colWidths[i], align: 'left' });
+    });
+
+    startY += 25;
+
+    // Draw rows
+    monthlyTable.rows.forEach(row => {
+        row.forEach((cell, i) => {
+            doc.text((cell || '').toString(), startX + i * colWidths[i], startY, { width: colWidths[i], align: 'left' });
+        });
+        startY += 25;
+    });
+
+    doc.moveDown();
+    
+    // Status Breakdown
+    doc.fontSize(20).text('Status Breakdown');
+    const statusBreakdown = {};
+    statuses.forEach(row => {
+        statusBreakdown[row.current_status] = parseInt(row.count, 10);
+    });
+    const statusTable = {
+        headers: ['Status', 'Count'],
+        rows: Object.entries(statusBreakdown).map(([status, count]) => [status, count])
+    };
+
+    tableTop = doc.y;
+    startY = tableTop;
+
+    // Draw headers
+    statusTable.headers.forEach((header, i) => {
+        doc.text(header, startX + i * colWidths[i], startY, { width: colWidths[i], align: 'left' });
+    });
+    
+    startY += 25;
+
+    // Draw rows
+    statusTable.rows.forEach(row => {
+        row.forEach((cell, i) => {
+            doc.text((cell || '').toString(), startX + i * colWidths[i], startY, { width: colWidths[i], align: 'left' });
+        });
+        startY += 25;
+    });
+
+
+    doc.moveDown();
+
+    // Approvals with Signatures
+    doc.fontSize(20).text('Approvals');
+    for (const approval of approvals) {
+        doc.fontSize(12).text(`Transaction: ${approval.subject}`);
+        doc.fontSize(10).text(`Approved by: ${approval.performer_name}`);
+        if (approval.signature_path) {
+            const signaturePath = path.join(__dirname, '..', 'uploads', 'Images', approval.signature_path);
+            if (fs.existsSync(signaturePath)) {
+                try {
+                    doc.image(signaturePath, { width: 100 });
+                } catch (err) {
+                    doc.text('Invalid Image');
+                }
+            }
+        }
+        doc.moveDown();
+    }
+
+    try {
+        doc.end();
+    } catch (err) {
+        console.error("Error ending PDF document:", err);
+    }
 });

@@ -217,3 +217,33 @@ export const login = asyncWrapper(async (req, res, next) => {
 //     data: { token }
 //   });
 // });
+
+export const updateUserSignature = asyncWrapper(async (req, res, next) => {
+  const userId = req.userId;
+
+  if (!req.file) {
+    const error = appError.create("Signature image is required", 400, httpStatusText.FAIL);
+    return next(error);
+  }
+
+  const signaturePath = req.file.filename;
+
+  const update = await User.updateUserSignaturePath(userId, signaturePath);
+
+  if (!update) {
+    const error = appError.create(
+      "Failed to update signature",
+      400,
+      httpStatusText.FAIL
+    );
+    return next(error);
+  }
+
+  return res.status(200).json({
+    status: "success",
+    message: "Signature updated successfully",
+    data: {
+      signature_path: signaturePath,
+    },
+  });
+});

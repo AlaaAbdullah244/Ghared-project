@@ -112,3 +112,14 @@ export const updateUserProfileData = async (
  
   return result.rows[0]; // ✅ دلوقتي هترجع بيانات اليوزر بعد التحديث
 };
+
+export const updateUserSignaturePath = async (userId, signaturePath) => {
+  const query = `
+    UPDATE "User" 
+    SET signature_path = $1
+    WHERE user_id = $2
+    RETURNING signature_path;
+  `;
+  const result = await pool.query(query, [signaturePath, userId]);
+  return result.rows[0];
+};

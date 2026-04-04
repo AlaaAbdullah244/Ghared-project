@@ -155,6 +155,9 @@ export const createTransaction = asyncWrapper(async (req, res, next) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    
+    const user = await UserData.getUserProfileData(userId);
+    const signature_path = isDraftBool ? null : user?.signature_path;
 
     // أ) حفظ المعاملة (زي ما هي)
     const transId = await TransData.insertTransaction(client, {
@@ -166,6 +169,7 @@ export const createTransaction = asyncWrapper(async (req, res, next) => {
       is_draft: isDraftBool,
       current_state: currentStateStr,
       code: transCode,
+      signature: signature_path,
     });
 
     // ب) حفظ المرفقات (زي ما هي)
@@ -313,6 +317,9 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
     const action_type_id = await TransData.getActionTypeIdByName(action_name);
 
     let newStatus = "قيد المعالجة";
+    const performerName = await TransData.getUserName(userId);
+    const user = await UserData.getUserProfileData(userId);
+    const signature_path = user?.signature_path;
 
     if (action_name === "إحالة") {
       if (!target_department_id) {
@@ -327,6 +334,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         transaction_id: transId,
         performer_user_id: userId,
         target_department_id,
+        signature_path,
       });
 
       // 2. منطق الإحالة: إنشاء معاملة جديدة وإرسالها
@@ -355,6 +363,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         is_draft: false,
         current_state: "وارد جديد",
         code: referralTransCode,
+        signature: signature_path,
       });
 
       // 3. نسخ المرفقات
@@ -410,7 +419,6 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         newStatus = "تمت الموافقة";
 
         // إرسال إشعار لصاحب المعاملة الأصلي
-        const performerName = await TransData.getUserName(userId);
         await TransData.createAndEmitNotification(
           client,
           {
@@ -433,7 +441,6 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         newStatus = "تم الرفض";
 
         // إرسال إشعار لصاحب المعاملة الأصلي
-        const performerName = await TransData.getUserName(userId);
         await TransData.createAndEmitNotification(
           client,
           {
@@ -461,6 +468,7 @@ export const performTransactionAction = asyncWrapper(async (req, res, next) => {
         transaction_id: transId,
         performer_user_id: userId,
         target_department_id: target_department_id || null,
+        signature_path,
       });
     }
 
