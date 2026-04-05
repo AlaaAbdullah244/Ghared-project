@@ -14,6 +14,9 @@ router.get("/user-dashboard", reportController.getUserDashboardStats);
 // 2. (جديد) تقرير التقدم السنوي (Admin Only)
 router.get("/admin/yearly-progress", reportController.getAdminYearlyProgress);
 
+// 3. تقرير أداء الأقسام (Admin Only)
+router.get("/admin/departments-performance", reportController.getAdminDepartmentsPerformance);
+
 // New route for annual report
 router.get("/annual-report", reportController.generateAnnualReport);
 
