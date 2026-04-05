@@ -13,7 +13,7 @@
 
 // src/routes/userRouter.js
 import express from "express";
-import { login, updateUser, getUserProfile, updateUserSignature } from "../controllers/userController.js";
+import { login, updateUser, getUserProfile, updateUserSignature, getUserSignature } from "../controllers/userController.js";
 import multer  from "multer";
 import { userValidation } from "../middelware/userValidation.js";
 import path from 'path';
@@ -58,6 +58,7 @@ const upload = multer({
 router.get('/test', (req, res) => { res.send('User router test OK'); });
 router.post("/login", login);
 router.get("/profile", verifyToken, getUserProfile);
+router.get("/profile/signature", verifyToken, getUserSignature);
 router.put("/profile/update",verifyToken,upload.single('profilePicture'),userValidation, updateUser);
 router.patch("/profile/signature", verifyToken, upload.single('signature'), updateUserSignature);
 

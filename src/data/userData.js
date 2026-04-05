@@ -24,19 +24,19 @@ export const getUserById = async (user_id) => {
 
 export const getUserProfileData = async (userId) => {
     const query = `
-        SELECT 
-            user_id, 
-            full_name, 
-            email, 
-            mobile_number, 
-            landline, 
-            fax_number, 
+        SELECT
+            user_id,
+            full_name,
+            email,
+            mobile_number,
+            landline,
+            fax_number,
             profile_picture,
-            is_first_login
+            is_first_login,
+            signature_path
         FROM "User"
         WHERE user_id = $1
-    `;
-    const result = await pool.query(query, [userId]);
+    `;    const result = await pool.query(query, [userId]);
     return result.rows[0];
 };
 
